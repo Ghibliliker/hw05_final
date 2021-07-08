@@ -1,0 +1,15 @@
+{% extends "base.html" %} 
+{% block title %}Любимое{% endblock %} 
+{% block header %}Последние публикации ваших любимых авторов{% endblock %} 
+{% block content %}
+{% include "includes/menu.html" with follow=True %}
+{% load cache %}
+{% cache 20 index_page %}
+  {% for post in page %} 
+
+    {% include "includes/card_post.html" with post=post %}
+
+  {% endfor %} 
+  {% include "paginator.html" %}
+{% endcache %} 
+{% endblock %}
