@@ -26,11 +26,11 @@ class StaticURLTests(TestCase):
             '/new/': 'new.html',
             f'/{cls.user.username}/{cls.post.id}/edit/': 'new.html',
         }
-        cls.url_ok_auth = [
-            '/new/',
-            f'/{cls.user.username}/{cls.post.id}/edit/',
-            f'/{cls.user.username}/{cls.post.id}/comment'
-        ]
+        cls.url_ok_auth = {
+            '/new/': HTTPStatus.OK,
+            f'/{cls.user.username}/{cls.post.id}/edit/': HTTPStatus.OK,
+            f'/{cls.user.username}/{cls.post.id}/comment/': HTTPStatus.FOUND,
+        }
         cls.url_ok_notauth = [
             '/',
             f'/group/{cls.group.slug}/',
@@ -39,11 +39,11 @@ class StaticURLTests(TestCase):
         ]
         id_p = cls.post.id
         g = f'{reverse("login")}?next=/{cls.user.username}/{id_p}/edit/'
-        g2 = f'{reverse("login")}?next=/{cls.user.username}/{id_p}/comment'
+        g2 = f'{reverse("login")}?next=/{cls.user.username}/{id_p}/comment/'
         cls.redirect_notauth = {
             '/new/': f'{reverse("login")}?next=/new/',
             f'/{cls.user.username}/{cls.post.id}/edit/': g,
-            f'/{cls.user.username}/{cls.post.id}/comment': g2,
+            f'/{cls.user.username}/{cls.post.id}/comment/': g2,
         }
 
     def setUp(self):
@@ -72,10 +72,10 @@ class StaticURLTests(TestCase):
                 self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_url_auth(self):
-        for adress in self.url_ok_auth:
+        for adress, status in self.url_ok_auth.items():
             with self.subTest(adress=adress):
                 response = self.authorized_client.get(adress)
-                self.assertEqual(response.status_code, HTTPStatus.OK)
+                self.assertEqual(response.status_code, status)
 
     def test_url_notauth(self):
         for adress in self.url_ok_notauth:
@@ -92,3 +92,4 @@ class StaticURLTests(TestCase):
     def test_404(self):
         response = self.guest_client.get('/page_non_existent', follow=True)
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+        self.assertTemplateUsed(response, 'misc/404.html')

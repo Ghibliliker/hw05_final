@@ -3,11 +3,14 @@
 {% block content %}
 <main role="main" class="container">
   <div class="row">
-    {% include "includes/card_author.html" with full_name=author.get_full_name username=author.username count=page.paginator.count %} 
+    {% include "includes/card_author.html" with author=author count=page.paginator.count %} 
     <div class="col-md-9">
       {% for post in page %}
+
       {% include "includes/card_post.html" with post=post %}
+      
       {% endfor %}
+      
       {% include "paginator.html" %}
     </div>
   </div>

@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q, F
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -70,3 +71,19 @@ class Follow(models.Model):
 
     class Meta:
         ordering = ['-user']
+        constraints = [
+            models.UniqueConstraint(
+                fields=('user', 'author'),
+                name='user_author_unique'
+            ),
+            # здесь шла какая-то непонятная ошибка при миграции
+            # наставник сказал добавить ~ перед Q и все заработало
+            # может скинете что-нибудь про Q и F с адекватными понятными
+            # примерами, ибо сделал я методом тыка,
+            # несовсем понимая, что логически происходит
+            # примеров найти не удалось, везде пример с возрастом :(
+            models.CheckConstraint(
+                check=~Q(user=F('author')),
+                name='not_yourself_following'
+            )
+        ]

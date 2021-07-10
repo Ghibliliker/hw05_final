@@ -30,10 +30,9 @@ def profile(request, username):
     paginator = Paginator(post_list, 10)
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
-    following = False
-    if user.is_authenticated:
-        if Follow.objects.filter(user=user, author=author).exists():
-            following = True
+    following = user.is_authenticated and Follow.objects.filter(
+        user=user, author=author
+    ).exists()
     return render(
         request,
         'profile.html',
@@ -73,18 +72,13 @@ def add_comment(request, username, post_id):
         id=post_id, author__username=username
     )
     form = CommentForm(request.POST or None)
-    comments = Comment.objects.filter(post_id=post_id)
     if form.is_valid():
         comment = form.save(commit=False)
         comment.author = request.user
-        comment.post = Post.objects.get(pk=post_id)
+        comment.post = post
         comment.save()
         return redirect('post_view', username=username, post_id=post_id)
-    return render(
-        request,
-        'includes/comments.html',
-        {'form': form, 'comments': comments, 'post': post}
-    )
+    return redirect('post_view', username=username, post_id=post_id)
 
 
 @login_required
@@ -114,7 +108,7 @@ def follow_index(request):
     paginator = Paginator(post_list, 10)
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
-    return render(request, "follow.html", {'page': page, })
+    return render(request, 'follow.html', {'page': page, })
 
 
 @login_required
@@ -123,17 +117,13 @@ def profile_follow(request, username):
     user = request.user
     if author != user:
         Follow.objects.get_or_create(author=author, user=user)
-        return redirect('index')
     return redirect('profile', username=username)
 
 
 @login_required
 def profile_unfollow(request, username):
-    author = get_object_or_404(User, username=username)
     user = request.user
-    if author != user:
-        Follow.objects.filter(author=author, user=user).delete()
-        return redirect('index')
+    Follow.objects.filter(author__username=username, user=user).delete()
     return redirect('profile', username=username)
 
 

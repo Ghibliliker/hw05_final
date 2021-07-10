@@ -3,14 +3,13 @@ import tempfile
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.cache import cache
-from django.core.cache.utils import make_template_fragment_key
 from django.conf import settings
 from django.test import TestCase, Client, override_settings
 from django.urls.base import reverse
 from django import forms
 from django.conf import settings
 
-from ..models import Post, Group, Follow, User
+from ..models import Comment, Post, Group, Follow, User
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -62,6 +61,8 @@ class PostViewsTests(TestCase):
     def setUp(self):
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
+        self.guest_client = Client()
+        cache.clear()
 
     def check_context_of_create_post(self, response):
         create_post = response.context.get('page')[0]
@@ -72,10 +73,56 @@ class PostViewsTests(TestCase):
         self.assertEqual(create_post.image, self.post.image)
         self.assertIn(self.post, response.context.get('page'))
 
+    def test_anon_not_add_comment(self):
+        comment_count = Comment.objects.count()
+        form_data = {
+            'text': 'Тестовый текст'
+        }
+        self.guest_client.post(
+            reverse(
+                'add_comment',
+                kwargs={
+                    'username': self.user.username,
+                    'post_id': self.post.id
+                }
+            ),
+            data=form_data,
+            follow=True
+        )
+        self.assertEqual(Comment.objects.count(), comment_count)
+
+    def test_user_add_comment(self):
+        comment_count = Comment.objects.count()
+        form_data = {
+            'text': 'Тестовый текст'
+        }
+        self.authorized_client.post(
+            reverse(
+                'add_comment',
+                kwargs={
+                    'username': self.user.username,
+                    'post_id': self.post.id
+                }
+            ),
+            data=form_data,
+            follow=True
+        )
+        post_comment = Comment.objects.get(pk=1)
+        self.assertEqual(Comment.objects.count(), comment_count + 1)
+        self.assertEqual(post_comment.text, form_data['text'])
+
     def test_cache_exists(self):
-        key = make_template_fragment_key('index_page')
-        cache_availability = key in cache
-        self.assertTrue(cache_availability)
+        response1 = self.authorized_client.get(reverse('index'))
+        post = Post.objects.create(
+            text='Тестовый текст',
+            author=self.user
+        )
+        response2 = self.authorized_client.get(reverse('index'))
+        self.assertEqual(response1.content, response2.content)
+        cache.clear()
+        response3 = self.authorized_client.get(reverse('index'))
+        self.assertNotEqual(response2.content, response3.content)
+        self.assertIn(post, response3.context['page'])
 
     def test_templates_use_correct(self):
         for template, name in self.templates.items():
@@ -188,16 +235,14 @@ class PaginatorViewsTest(TestCase):
             with self.subTest(adress=adress):
                 response = self.authorized_client.get(adress)
                 i = response.context.get('page')
-                # i.object_list.count() ни в какую не работает :(    ??????
-                self.assertEqual(i.paginator.page(1).object_list.count(), 10)
+                self.assertEqual(len(i.object_list), 10)
 
     def test_second_page_contains_three_records(self):
         for adress in self.url_names:
             with self.subTest(adress=adress):
                 response = self.authorized_client.get(adress + '?page=2')
                 i = response.context.get('page')
-                # здесь та же проблема, потому оставил старый способ    ???????
-                self.assertEqual(i.paginator.page(2).object_list.count(), 3)
+                self.assertEqual(len(i.object_list), 3)
 
 
 class CreateViewsTests(TestCase):
@@ -256,11 +301,8 @@ class CreateViewsTests(TestCase):
         self.assertNotIn(self.post2, response.context['page'])
 
     def test_unfollow_author(self):
-        self.authorized_client2.get(
-            reverse(
-                'profile_follow', kwargs={'username': f'{self.user.username}'}
-            )
-        )
+        Follow.objects.create(user=self.user2, author=self.user)
+        follow_count = Follow.objects.count()
         self.authorized_client2.get(
             reverse(
                 'profile_unfollow', kwargs={
@@ -271,8 +313,10 @@ class CreateViewsTests(TestCase):
         self.assertFalse(
             Follow.objects.filter(author=self.user, user=self.user2).exists()
         )
+        self.assertEqual(Follow.objects.count(), follow_count - 1)
 
     def test_follow_author(self):
+        follow_count = Follow.objects.count()
         self.authorized_client2.get(
             reverse(
                 'profile_follow', kwargs={'username': f'{self.user.username}'}
@@ -281,6 +325,7 @@ class CreateViewsTests(TestCase):
         self.assertTrue(
             Follow.objects.filter(author=self.user, user=self.user2).exists()
         )
+        self.assertEqual(Follow.objects.count(), follow_count + 1)
 
     def test_group_notcontains_post(self):
         response = self.authorized_client.get(

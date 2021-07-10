@@ -27,7 +27,7 @@
           </div>  
         {% endif %}
         {% if user.is_authenticated %}
-          <a class="btn btn-sm text-muted" href="{% url 'add_comment' post.author.username post.id %}" role="button"> 
+          <a class="btn btn-sm text-muted" href="{% url 'post_view' post.author.username post.id %}" role="button"> 
            Добавить комментарий 
           </a>
         {% endif %}

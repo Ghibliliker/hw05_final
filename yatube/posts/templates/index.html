@@ -10,7 +10,8 @@
 
     {% include "includes/card_post.html" with post=post %}
 
-  {% endfor %} 
+  {% endfor %}
+  {% endcache %} 
   {% include "paginator.html" %}
-{% endcache %} 
+
 {% endblock %}
