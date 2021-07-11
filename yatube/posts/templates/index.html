@@ -4,7 +4,7 @@
 {% block content %}
 {% include "includes/menu.html" with index=True %}
 {% load cache %}
-{% cache 20 index_page %}
+{% cache 20 index_page request.user page %}
 
   {% for post in page %} 
 

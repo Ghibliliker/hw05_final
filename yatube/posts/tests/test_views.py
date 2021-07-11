@@ -110,6 +110,8 @@ class PostViewsTests(TestCase):
         post_comment = Comment.objects.get(pk=1)
         self.assertEqual(Comment.objects.count(), comment_count + 1)
         self.assertEqual(post_comment.text, form_data['text'])
+        self.assertEqual(post_comment.author, self.user)
+        self.assertEqual(post_comment.post.id, self.post.id)
 
     def test_cache_exists(self):
         response1 = self.authorized_client.get(reverse('index'))

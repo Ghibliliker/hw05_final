@@ -77,7 +77,6 @@ def add_comment(request, username, post_id):
         comment.author = request.user
         comment.post = post
         comment.save()
-        return redirect('post_view', username=username, post_id=post_id)
     return redirect('post_view', username=username, post_id=post_id)
 
 
